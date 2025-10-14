@@ -22,8 +22,8 @@
   :root {
     --ink: #E5E7EB;
     --muted: #9CA3AF;
-    --card: #111318;
-    --panel: #0B0C10;
+    --card: #FFFFFF;
+    --panel: #FFFFFF;
     --line: #263041;
     --accent: #F98A90;
     --accent-bg: rgba(249, 138, 144, 0.18);
@@ -34,7 +34,7 @@
     --pill-active-border: rgba(249, 138, 144, 0.75);
     --pill-active-ink: #FFE5E5;
     --shadow: none;
-    --header-bg: #0B0C10;
+    --header-bg: #FFFFFF;
     --header-ink: #E5E7EB;
   }
 }
