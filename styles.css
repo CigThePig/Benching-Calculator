@@ -20,8 +20,8 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --ink: #E5E7EB;
-    --muted: #9CA3AF;
+    --ink: #111827;
+    --muted: #4B5563;
     --card: #FFFFFF;
     --panel: #FFFFFF;
     --line: #263041;
@@ -32,10 +32,10 @@
     --pill-ink: #E5E7EB;
     --pill-active-bg: linear-gradient(135deg, rgba(249, 138, 144, 0.35), rgba(249, 138, 144, 0.5));
     --pill-active-border: rgba(249, 138, 144, 0.75);
-    --pill-active-ink: #FFE5E5;
+    --pill-active-ink: #701014;
     --shadow: none;
     --header-bg: #FFFFFF;
-    --header-ink: #E5E7EB;
+    --header-ink: #111827;
   }
 }
 
