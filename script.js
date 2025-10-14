@@ -12,6 +12,26 @@ function oneHotPill(rowSel, btn) {
   btn.setAttribute("aria-pressed", "true");
 }
 
+function setPillSelection(rowSel, activeSelector) {
+  document
+    .querySelectorAll(`${rowSel} .pill`)
+    .forEach((pill) => pill.setAttribute("aria-pressed", "false"));
+  if (activeSelector) {
+    document
+      .querySelector(`${rowSel} ${activeSelector}`)
+      ?.setAttribute("aria-pressed", "true");
+  }
+}
+
+function readInt(input) {
+  if (!input) return { value: null, valid: false };
+  const raw = toInt(input.value);
+  if (raw == null || Number.isNaN(raw)) {
+    return { value: null, valid: false };
+  }
+  return { value: raw, valid: true };
+}
+
 // Leg suggestion logic: return ALL overlapping options; if none, return nearest range(s)
 const LEG_WINDOWS = [
   { label: "Red 762 legs", min: 910, max: 1280, cls: "leg-red" },
@@ -21,8 +41,9 @@ const LEG_WINDOWS = [
 ];
 
 function renderLegBands(containerId, target) {
-  const c = document.getElementById(containerId);
-  c.innerHTML = "";
+  const container = document.getElementById(containerId);
+  if (!container) return;
+  container.replaceChildren();
   if (target == null || Number.isNaN(target)) return;
   const hits = LEG_WINDOWS.filter((w) => target >= w.min && target <= w.max);
   if (hits.length > 0) {
@@ -30,7 +51,7 @@ function renderLegBands(containerId, target) {
       const d = document.createElement("div");
       d.className = `leg-band ${w.cls}`;
       d.textContent = w.label;
-      c.appendChild(d);
+      container.appendChild(d);
     });
   } else {
     // nearest: minimal distance to a window; include ties
@@ -52,7 +73,7 @@ function renderLegBands(containerId, target) {
       const d = document.createElement("div");
       d.className = `leg-band ${w.cls}`;
       d.textContent = w.label;
-      c.appendChild(d);
+      container.appendChild(d);
     });
   }
 }
@@ -76,14 +97,21 @@ tabBtnPlanner.addEventListener("click", () => selectTab("planner"));
 
 // -------- Bench Mode logic --------
 let benchMode = "manual"; // default off
+const benchAutoBlock = document.getElementById("benchAutoBlock");
+const benchManualBlock = document.getElementById("benchManualBlock");
+const benchCalc = document.getElementById("b_calc");
+const benchReset = document.getElementById("b_reset");
+const benchEq = document.getElementById("b_eq");
+const benchResult = document.getElementById("b_result");
+const benchLegBand = document.getElementById("b_legBand");
 
 document.getElementById("benchModeRow").addEventListener("click", (e) => {
   const b = e.target.closest(".pill[data-mode]");
   if (!b) return;
   oneHotPill("#benchModeRow", b);
   benchMode = b.dataset.mode;
-  document.getElementById("benchAutoBlock").hidden = benchMode !== "auto";
-  document.getElementById("benchManualBlock").hidden = benchMode !== "manual";
+  if (benchAutoBlock) benchAutoBlock.hidden = benchMode !== "auto";
+  if (benchManualBlock) benchManualBlock.hidden = benchMode !== "manual";
   benchMaybeEnable();
 });
 
@@ -107,8 +135,8 @@ const b_lcur = document.getElementById("b_lcur");
 });
 
 function benchEcho() {
-  const h = toInt(b_hfb?.value);
-  if (B_piece != null && h != null && !Number.isNaN(h)) {
+  const { value: h, valid } = readInt(b_hfb);
+  if (B_piece != null && valid) {
     if (b_sreq_auto) b_sreq_auto.value = B_piece - h;
   } else if (b_sreq_auto) {
     b_sreq_auto.value = "";
@@ -119,63 +147,46 @@ function benchEcho() {
 b_hfb?.addEventListener("input", benchEcho);
 
 function benchMaybeEnable() {
-  let ok = false;
-  if (benchMode === "auto") {
-    ok =
-      toInt(b_hfb?.value) != null &&
-      !Number.isNaN(toInt(b_hfb?.value)) &&
-      B_piece != null &&
-      toInt(b_scur.value) != null &&
-      !Number.isNaN(toInt(b_scur.value)) &&
-      toInt(b_lcur.value) != null &&
-      !Number.isNaN(toInt(b_lcur.value));
-  } else {
-    ok =
-      toInt(b_sreq_manual.value) != null &&
-      !Number.isNaN(toInt(b_sreq_manual.value)) &&
-      toInt(b_scur.value) != null &&
-      !Number.isNaN(toInt(b_scur.value)) &&
-      toInt(b_lcur.value) != null &&
-      !Number.isNaN(toInt(b_lcur.value));
-  }
-  document.getElementById("b_calc").disabled = !ok;
+  const hfbInt = readInt(b_hfb);
+  const sreqManualInt = readInt(b_sreq_manual);
+  const scurInt = readInt(b_scur);
+  const lcurInt = readInt(b_lcur);
+  const autoReady = benchMode === "auto" && B_piece != null && hfbInt.valid;
+  const manualReady = benchMode === "manual" && sreqManualInt.valid;
+  const ok = (autoReady || manualReady) && scurInt.valid && lcurInt.valid;
+  if (benchCalc) benchCalc.disabled = !ok;
 }
 
-document.getElementById("b_calc").addEventListener("click", () => {
-  const Sreq = benchMode === "auto" ? toInt(b_sreq_auto.value) : toInt(b_sreq_manual.value);
-  const Scur = toInt(b_scur.value);
-  const Lcur = toInt(b_lcur.value);
+benchCalc?.addEventListener("click", () => {
+  const Sreq =
+    benchMode === "auto" ? readInt(b_sreq_auto).value : readInt(b_sreq_manual).value;
+  const Scur = readInt(b_scur).value;
+  const Lcur = readInt(b_lcur).value;
+  if (Sreq == null || Scur == null || Lcur == null) return;
   const dS = Scur - Sreq;
   const Lnew = Lcur + dS;
-  const eq = document.getElementById("b_eq");
-  const res = document.getElementById("b_result");
-  eq.hidden = false;
-  res.hidden = false;
-  res.textContent = `New Leg Height: ${Lnew} mm`;
+  if (benchEq) benchEq.hidden = false;
+  if (benchResult) {
+    benchResult.hidden = false;
+    benchResult.textContent = `New Leg Height: ${Lnew} mm`;
+  }
   renderLegBands("b_legBand", Lnew);
 });
 
-document.getElementById("b_reset").addEventListener("click", () => {
+benchReset?.addEventListener("click", () => {
   benchMode = "manual";
-  document
-    .querySelectorAll("#benchModeRow .pill")
-    .forEach((b) => b.setAttribute("aria-pressed", "false"));
-  document
-    .querySelector('#benchModeRow .pill[data-mode="manual"]')
-    .setAttribute("aria-pressed", "true");
-  document.getElementById("benchAutoBlock").hidden = true;
-  document.getElementById("benchManualBlock").hidden = false;
+  setPillSelection("#benchModeRow", '.pill[data-mode="manual"]');
+  if (benchAutoBlock) benchAutoBlock.hidden = true;
+  if (benchManualBlock) benchManualBlock.hidden = false;
   B_piece = null;
-  document
-    .querySelectorAll("#benchPieceRow .pill")
-    .forEach((b) => b.setAttribute("aria-pressed", "false"));
+  setPillSelection("#benchPieceRow");
   [b_hfb, b_sreq_auto, b_sreq_manual, b_scur, b_lcur].forEach((el) => {
     if (el) el.value = "";
   });
-  document.getElementById("b_eq").hidden = true;
-  document.getElementById("b_result").hidden = true;
-  document.getElementById("b_legBand").innerHTML = "";
-  document.getElementById("b_calc").disabled = true;
+  if (benchEq) benchEq.hidden = true;
+  if (benchResult) benchResult.hidden = true;
+  benchLegBand?.replaceChildren();
+  if (benchCalc) benchCalc.disabled = true;
 });
 
 // -------- Pre-Foam Planner --------
@@ -183,7 +194,13 @@ let H_CORE = 1595;
 const T_SPIG = 130;
 let P_piece = 914;
 let D_boot = 200;
-document.getElementById("centerEcho").textContent = String(D_boot / 2);
+const centerEcho = document.getElementById("centerEcho");
+const planBtn = document.getElementById("plan");
+const resetBtn = document.getElementById("reset");
+const eq = document.getElementById("eq");
+const result = document.getElementById("result");
+const legBand = document.getElementById("legBand");
+if (centerEcho) centerEcho.textContent = String(D_boot / 2);
 
 document.getElementById("coreRow").addEventListener("click", (e) => {
   const b = e.target.closest(".pill[data-core]");
@@ -206,7 +223,7 @@ document.getElementById("bootRow").addEventListener("click", (e) => {
   if (!b) return;
   oneHotPill("#bootRow", b);
   D_boot = parseInt(b.dataset.boot, 10);
-  document.getElementById("centerEcho").textContent = String(D_boot / 2);
+  if (centerEcho) centerEcho.textContent = String(D_boot / 2);
   maybeEnable();
 });
 
@@ -215,54 +232,39 @@ const tfoam = document.getElementById("tfoam");
 [hfb, tfoam].forEach((el) => el.addEventListener("input", maybeEnable));
 
 function maybeEnable() {
-  const ok =
-    toInt(hfb.value) != null &&
-    !Number.isNaN(toInt(hfb.value)) &&
-    toInt(tfoam.value) != null &&
-    !Number.isNaN(toInt(tfoam.value)) &&
-    P_piece &&
-    D_boot &&
-    H_CORE;
-  document.getElementById("plan").disabled = !ok;
+  const hfbInt = readInt(hfb);
+  const tfoamInt = readInt(tfoam);
+  const ok = hfbInt.valid && tfoamInt.valid && P_piece && D_boot && H_CORE;
+  if (planBtn) planBtn.disabled = !ok;
 }
 
-document.getElementById("plan").addEventListener("click", () => {
-  const Hfb = toInt(hfb.value);
-  const F = toInt(tfoam.value);
+planBtn?.addEventListener("click", () => {
+  const Hfb = readInt(hfb).value;
+  const F = readInt(tfoam).value;
+  if (Hfb == null || F == null) return;
   const L = H_CORE - T_SPIG - (P_piece - Hfb) + (F - D_boot / 2);
-  const eq = document.getElementById("eq");
-  const res = document.getElementById("result");
-  eq.hidden = false;
-  res.hidden = false;
-  res.textContent = `Set legs to: ${L} mm`;
+  if (eq) eq.hidden = false;
+  if (result) {
+    result.hidden = false;
+    result.textContent = `Set legs to: ${L} mm`;
+  }
   renderLegBands("legBand", L);
 });
 
-document.getElementById("reset").addEventListener("click", () => {
+resetBtn?.addEventListener("click", () => {
   H_CORE = 1595;
   P_piece = 914;
   D_boot = 200;
-  document.getElementById("centerEcho").textContent = "100";
-  ["#coreRow", "#pieceRow", "#bootRow"].forEach((sel) =>
-    document
-      .querySelectorAll(`${sel} .pill`)
-      .forEach((b) => b.setAttribute("aria-pressed", "false"))
-  );
-  document
-    .querySelector('#coreRow .pill[data-core="1595"]')
-    .setAttribute("aria-pressed", "true");
-  document
-    .querySelector('#pieceRow .pill[data-size="914"]')
-    .setAttribute("aria-pressed", "true");
-  document
-    .querySelector('#bootRow .pill[data-boot="200"]')
-    .setAttribute("aria-pressed", "true");
+  if (centerEcho) centerEcho.textContent = "100";
+  setPillSelection("#coreRow", '.pill[data-core="1595"]');
+  setPillSelection("#pieceRow", '.pill[data-size="914"]');
+  setPillSelection("#bootRow", '.pill[data-boot="200"]');
   hfb.value = "";
   tfoam.value = "";
-  document.getElementById("plan").disabled = true;
-  document.getElementById("eq").hidden = true;
-  document.getElementById("result").hidden = true;
-  document.getElementById("legBand").innerHTML = "";
+  if (planBtn) planBtn.disabled = true;
+  if (eq) eq.hidden = true;
+  if (result) result.hidden = true;
+  legBand?.replaceChildren();
 });
 
 // Default tab
