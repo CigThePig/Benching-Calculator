@@ -1,347 +1,150 @@
 <!doctype html>
 <html lang="en">
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>DECAST • Benching & Pre-Foam Planner (piece switch + multi-leg)</title>
-<style>
-  :root{
-    --brand:#9E1B22;
-    --ink:#111827; --muted:#6B7280;
-    --card:#FFFFFF; --panel:#F9FAFB; --line:#E5E7EB;
-    --accent:#60A5FA; --accent-bg:#DBEAFE;
-    --pill:#111827; --shadow:0 8px 24px rgba(17,17,17,.06);
-    --header-bg:#FFFFFF; --header-ink:#111827;
-  }
-  @media (prefers-color-scheme: dark){
-    :root{
-      --ink:#E5E7EB; --muted:#9CA3AF;
-      --card:#111318; --panel:#0B0C10; --line:#263041;
-      --accent:#60A5FA; --accent-bg:#1E293B;
-      --pill:#1F2937; --shadow:none; --header-bg:#0B0C10; --header-ink:#E5E7EB;
-    }
-  }
-  *{box-sizing:border-box}
-  html,body{height:100%}
-  body{margin:0;background:var(--panel);color:var(--ink);font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;}
-  header{background:var(--header-bg);color:var(--header-ink);padding:10px 16px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:10;border-bottom:1px solid var(--line)}
-  header img{height:26px}
-  header .tag{margin-left:auto;font-size:.8rem;opacity:.8}
-  main{max-width:920px;margin:18px auto;padding:0 14px}
-  .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px;box-shadow:var(--shadow)}
-  h1{font-size:1.15rem;margin:0 0 8px 0}
-  .sub{font-weight:700;margin-top:10px}
-  .row-pills{display:flex;gap:8px;flex-wrap:wrap;padding-top:4px}
-  .pill{background:var(--pill);color:#fff;padding:12px 14px;border-radius:9999px;font-weight:800;letter-spacing:.2px;border:0;cursor:pointer}
-  .pill[aria-pressed="true"]{outline:3px solid var(--accent);box-shadow:0 0 0 4px rgba(96,165,250,.25)}
-  .tabs{display:flex;gap:8px;margin:8px 0 12px;flex-wrap:wrap}
-  .tab{background:var(--pill);color:#fff;border:0;border-radius:999px;padding:10px 14px;cursor:pointer;font-weight:800}
-  .tab[aria-selected="true"]{outline:3px solid var(--accent);box-shadow:0 0 0 4px rgba(96,165,250,.25)}
-  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-  @media (max-width:680px){ .grid2{grid-template-columns:1fr} }
-  label{display:block;margin:10px 0 6px;font-weight:600}
-  .input{position:relative}
-  .input input{width:100%;padding:12px 52px 12px 12px;font-size:1rem;border:1px solid var(--line);border-radius:12px;background:var(--card);color:var(--ink);text-align:right}
-  .unit{position:absolute;right:12px;top:50%;transform:translateY(-50%);color:var(--muted);font-weight:700}
-  .hint{color:var(--muted);font-size:.9rem;margin-top:6px}
-  .actions{display:flex;gap:10px;margin-top:12px;flex-wrap:wrap}
-  .btn{padding:14px 16px;font-size:1rem;border:0;border-radius:12px;font-weight:800;cursor:pointer}
-  .primary{background:var(--brand);color:#fff;opacity:.9}
-  .primary:disabled{opacity:.5;cursor:not-allowed}
-  .secondary{background:#6B7280;color:#fff}
-  .equation{font-weight:700;font-size:1rem;background:#fff3cd;color:#222;padding:10px;border-radius:10px;border:1px solid #ffe08a;margin:10px 0}
-  @media (prefers-color-scheme: dark){ .equation{background:#3a2f00;color:#ffe08a;border-color:#6b4f00} }
-  .result{background:var(--accent-bg);border:1px solid var(--accent);border-radius:14px;padding:14px;text-align:center;font-size:1.35rem;font-weight:900;margin-top:8px}
-  .result[hidden]{display:none}
-  .leg-band{border-radius:12px;color:#fff;padding:14px 14px;margin-top:12px;font-weight:900;text-transform:uppercase;letter-spacing:.5px}
-  .leg-red{background:linear-gradient(135deg,#b91c1c,#9E1B22)}
-  .leg-green{background:linear-gradient(135deg,#16a34a,#15803d)}
-  .leg-yellow{background:linear-gradient(135deg,#d97706,#b45309)}
-  .leg-blue{background:linear-gradient(135deg,#2563eb,#1d4ed8)}
-  .leg-neutral{background:linear-gradient(135deg,#6b7280,#4b5563)}
-</style>
-<header>
-  <img alt="DECAST" src="https://decastltd.com/images/layout/logo.png">
-  <div class="tag">Merged tools • piece switch + multi-leg</div>
-</header>
-<main>
-  <div class="card">
-    <div class="tabs" role="tablist" aria-label="Tool switcher">
-      <button class="tab" role="tab" id="tabBtnBench" aria-selected="true" aria-controls="bench">Bench Mode</button>
-      <button class="tab" role="tab" id="tabBtnPlanner" aria-selected="false" aria-controls="planner">Pre-Foam Planner</button>
-    </div>
-
-    <!-- Bench Mode -->
-    <section id="bench" role="tabpanel" aria-labelledby="tabBtnBench">
-      <h1>Bench Mode</h1>
-
-      <div class="sub">Mode</div>
-      <div class="row-pills" id="benchModeRow" style="gap:12px">
-        <button class="pill" data-mode="manual" aria-pressed="true">Manual</button>
-        <button class="pill" data-mode="auto" aria-pressed="false">Auto (Piece mode)</button>
-      </div>
-
-      <div id="benchAutoBlock" hidden>
-        <div class="sub">Piece size (P)</div>
-        <div class="row-pills" id="benchPieceRow">
-          <button class="pill" data-size="762" aria-pressed="false">762</button>
-          <button class="pill" data-size="914" aria-pressed="false">914</button>
-          <button class="pill" data-size="1067" aria-pressed="false">1067</button>
-          <button class="pill" data-size="1219" aria-pressed="false">1219</button>
-          <button class="pill" data-size="1367" aria-pressed="false">1367</button>
-          <button class="pill" data-size="1524" aria-pressed="false">1524</button>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>DECAST • Benching &amp; Pre-Foam Planner (piece switch + multi-leg)</title>
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <header>
+      <img alt="DECAST" src="https://decastltd.com/images/layout/logo.png">
+      <div class="tag">Merged tools • piece switch + multi-leg</div>
+    </header>
+    <main>
+      <div class="card">
+        <div class="tabs" role="tablist" aria-label="Tool switcher">
+          <button class="tab" role="tab" id="tabBtnBench" aria-selected="true" aria-controls="bench">Bench Mode</button>
+          <button class="tab" role="tab" id="tabBtnPlanner" aria-selected="false" aria-controls="planner">Pre-Foam Planner</button>
         </div>
 
-        <div class="grid2">
-          <div class="input">
-            <label>Hole height from bottom (H_fb)</label>
-            <input id="b_hfb" inputmode="numeric" placeholder="e.g., 300">
-            <span class="unit">mm</span>
-            <div class="hint" id="b_hint_auto">Computed automatically: S_req = P − H_fb</div>
+        <!-- Bench Mode -->
+        <section id="bench" role="tabpanel" aria-labelledby="tabBtnBench">
+          <h1>Bench Mode</h1>
+
+          <div class="sub">Mode</div>
+          <div class="row-pills" id="benchModeRow" style="gap: 12px">
+            <button class="pill" data-mode="manual" aria-pressed="true">Manual</button>
+            <button class="pill" data-mode="auto" aria-pressed="false">Auto (Piece mode)</button>
           </div>
-          <div class="input">
-            <label>Computed required spigot height (S_req = P − H_fb)</label>
-            <input id="b_sreq_auto" placeholder="auto from P − H_fb" readonly>
+
+          <div id="benchAutoBlock" hidden>
+            <div class="sub">Piece size (P)</div>
+            <div class="row-pills" id="benchPieceRow">
+              <button class="pill" data-size="762" aria-pressed="false">762</button>
+              <button class="pill" data-size="914" aria-pressed="false">914</button>
+              <button class="pill" data-size="1067" aria-pressed="false">1067</button>
+              <button class="pill" data-size="1219" aria-pressed="false">1219</button>
+              <button class="pill" data-size="1367" aria-pressed="false">1367</button>
+              <button class="pill" data-size="1524" aria-pressed="false">1524</button>
+            </div>
+
+            <div class="grid2">
+              <div class="input">
+                <label for="b_hfb">Hole height from bottom (H_fb)</label>
+                <input id="b_hfb" inputmode="numeric" placeholder="e.g., 300">
+                <span class="unit">mm</span>
+                <div class="hint" id="b_hint_auto">Computed automatically: S_req = P − H_fb</div>
+              </div>
+              <div class="input">
+                <label for="b_sreq_auto">Computed required spigot height (S_req = P − H_fb)</label>
+                <input id="b_sreq_auto" placeholder="auto from P − H_fb" readonly>
+              </div>
+            </div>
           </div>
-        </div>
-      </div>
 
-      <div id="benchManualBlock">
-        <div class="grid2">
-          <div class="input">
-            <label>Required spigot height (S_req)</label>
-            <input id="b_sreq_manual" inputmode="numeric" placeholder="e.g., 462">
-            <span class="unit">mm</span>
-            <div class="hint" id="b_hint_manual">Enter required spigot height directly.</div>
+          <div id="benchManualBlock">
+            <div class="grid2">
+              <div class="input">
+                <label for="b_sreq_manual">Required spigot height (S_req)</label>
+                <input id="b_sreq_manual" inputmode="numeric" placeholder="e.g., 462">
+                <span class="unit">mm</span>
+                <div class="hint" id="b_hint_manual">Enter required spigot height directly.</div>
+              </div>
+              <div></div>
+            </div>
           </div>
-          <div></div>
-        </div>
+
+          <div class="grid2">
+            <div class="input">
+              <label for="b_scur">Current spigot height (S_cur)</label>
+              <input id="b_scur" inputmode="numeric" placeholder="e.g., 500">
+              <span class="unit">mm</span>
+            </div>
+            <div class="input">
+              <label for="b_lcur">Current leg height (L_cur)</label>
+              <input id="b_lcur" inputmode="numeric" placeholder="e.g., 1250">
+              <span class="unit">mm</span>
+            </div>
+          </div>
+
+          <div class="actions">
+            <button class="btn primary" id="b_calc" disabled>Calculate</button>
+            <button class="btn secondary" id="b_reset">Reset</button>
+          </div>
+
+          <div class="equation" id="b_eq" hidden>ΔS = S_cur − S_req • L_new = L_cur + ΔS</div>
+          <div class="result" id="b_result" hidden>New Leg Height: —</div>
+          <div id="b_legBand"></div>
+        </section>
+
+        <!-- Pre-Foam Planner -->
+        <section id="planner" role="tabpanel" aria-labelledby="tabBtnPlanner" hidden>
+          <h1>Pre-Foam Planner</h1>
+
+          <div class="sub">Core type</div>
+          <div class="row-pills" id="coreRow">
+            <button class="pill" data-core="1595" aria-pressed="true">Regular (1595)</button>
+            <button class="pill" data-core="1245" aria-pressed="false">Short (1245)</button>
+          </div>
+
+          <div class="sub">Piece size (P)</div>
+          <div class="row-pills" id="pieceRow">
+            <button class="pill" data-size="762" aria-pressed="false">762</button>
+            <button class="pill" data-size="914" aria-pressed="true">914</button>
+            <button class="pill" data-size="1067" aria-pressed="false">1067</button>
+            <button class="pill" data-size="1219" aria-pressed="false">1219</button>
+            <button class="pill" data-size="1367" aria-pressed="false">1367</button>
+            <button class="pill" data-size="1524" aria-pressed="false">1524</button>
+          </div>
+
+          <div class="sub">Boot Size (D)</div>
+          <div class="row-pills" id="bootRow">
+            <button class="pill" data-boot="150" aria-pressed="false">150</button>
+            <button class="pill" data-boot="200" aria-pressed="true">200</button>
+            <button class="pill" data-boot="250" aria-pressed="false">250</button>
+            <button class="pill" data-boot="300" aria-pressed="false">300</button>
+            <button class="pill" data-boot="350" aria-pressed="false">350</button>
+          </div>
+          <div class="hint">Center offset used in math: <strong><span id="centerEcho">100</span> mm</strong> (D/2)</div>
+
+          <div class="grid2">
+            <div class="input">
+              <label for="hfb">Hole height from bottom (H_fb)</label>
+              <input id="hfb" inputmode="numeric" placeholder="e.g., 300">
+              <span class="unit">mm</span>
+            </div>
+            <div class="input">
+              <label for="tfoam">Foam thickness (t_foam)</label>
+              <input id="tfoam" inputmode="numeric" placeholder="e.g., 500">
+              <span class="unit">mm</span>
+            </div>
+          </div>
+
+          <div class="actions">
+            <button class="btn primary" id="plan" disabled>Plan</button>
+            <button class="btn secondary" id="reset">Reset</button>
+          </div>
+
+          <div class="equation" id="eq" hidden>
+            L = (H_core − T_spig) − (P − H_fb) + (t_foam − D/2)
+          </div>
+          <div class="result" id="result" aria-live="polite" hidden>Set legs to: —</div>
+          <div id="legBand"></div>
+        </section>
       </div>
-
-      <div class="grid2">
-        <div class="input">
-          <label>Current spigot height (S_cur)</label>
-          <input id="b_scur" inputmode="numeric" placeholder="e.g., 500">
-          <span class="unit">mm</span>
-        </div>
-        <div class="input">
-          <label>Current leg height (L_cur)</label>
-          <input id="b_lcur" inputmode="numeric" placeholder="e.g., 1250">
-          <span class="unit">mm</span>
-        </div>
-      </div>
-
-      <div class="actions">
-        <button class="btn primary" id="b_calc" disabled>Calculate</button>
-        <button class="btn secondary" id="b_reset">Reset</button>
-      </div>
-
-      <div class="equation" id="b_eq" hidden>ΔS = S_cur − S_req • L_new = L_cur + ΔS</div>
-      <div class="result" id="b_result" hidden>New Leg Height: —</div>
-      <div id="b_legBand"></div>
-    </section>
-
-    <!-- Pre-Foam Planner -->
-    <section id="planner" role="tabpanel" aria-labelledby="tabBtnPlanner" hidden>
-      <h1>Pre-Foam Planner</h1>
-
-      <div class="sub">Core type</div>
-      <div class="row-pills" id="coreRow">
-        <button class="pill" data-core="1595" aria-pressed="true">Regular (1595)</button>
-        <button class="pill" data-core="1245" aria-pressed="false">Short (1245)</button>
-      </div>
-
-      <div class="sub">Piece size (P)</div>
-      <div class="row-pills" id="pieceRow">
-        <button class="pill" data-size="762" aria-pressed="false">762</button>
-        <button class="pill" data-size="914" aria-pressed="true">914</button>
-        <button class="pill" data-size="1067" aria-pressed="false">1067</button>
-        <button class="pill" data-size="1219" aria-pressed="false">1219</button>
-        <button class="pill" data-size="1367" aria-pressed="false">1367</button>
-        <button class="pill" data-size="1524" aria-pressed="false">1524</button>
-      </div>
-
-      <div class="sub">Boot Size (D)</div>
-      <div class="row-pills" id="bootRow">
-        <button class="pill" data-boot="150" aria-pressed="false">150</button>
-        <button class="pill" data-boot="200" aria-pressed="true">200</button>
-        <button class="pill" data-boot="250" aria-pressed="false">250</button>
-        <button class="pill" data-boot="300" aria-pressed="false">300</button>
-        <button class="pill" data-boot="350" aria-pressed="false">350</button>
-      </div>
-      <div class="hint">Center offset used in math: <strong><span id="centerEcho">100</span> mm</strong> (D/2)</div>
-
-      <div class="grid2">
-        <div class="input">
-          <label>Hole height from bottom (H_fb)</label>
-          <input id="hfb" inputmode="numeric" placeholder="e.g., 300">
-          <span class="unit">mm</span>
-        </div>
-        <div class="input">
-          <label>Foam thickness (t_foam)</label>
-          <input id="tfoam" inputmode="numeric" placeholder="e.g., 500">
-          <span class="unit">mm</span>
-        </div>
-      </div>
-
-      <div class="actions">
-        <button class="btn primary" id="plan" disabled>Plan</button>
-        <button class="btn secondary" id="reset">Reset</button>
-      </div>
-
-      <div class="equation" id="eq" hidden>
-        L = (H_core − T_spig) − (P − H_fb) + (t_foam − D/2)
-      </div>
-      <div class="result" id="result" aria-live="polite" hidden>Set legs to: —</div>
-      <div id="legBand"></div>
-    </section>
-
-  </div>
-  <footer>Independent of DECAST • Quick field estimates only.</footer>
-</main>
-<script>
-function toInt(v){ v=(v||"").trim().replace(/[^0-9\\-]/g,""); if(v===""||v==="-" )return null; const n=parseInt(v,10); return Number.isNaN(n)?NaN:n; }
-function oneHotPill(rowSel, btn){ document.querySelectorAll(rowSel+" .pill").forEach(b=>b.setAttribute("aria-pressed","false")); btn.setAttribute("aria-pressed","true"); }
-
-// Leg suggestion logic: return ALL overlapping options; if none, return nearest range(s)
-const LEG_WINDOWS=[
-  {label:"Red 762 legs",   min:910, max:1280, cls:"leg-red"},
-  {label:"Green 914 legs", min:760, max:1130, cls:"leg-green"},
-  {label:"Yellow 1067 legs", min:605, max:975, cls:"leg-yellow"},
-  {label:"Blue 1219 legs", min:455, max:825, cls:"leg-blue"},
-];
-function renderLegBands(containerId, target){
-  const c=document.getElementById(containerId); c.innerHTML="";
-  if(target==null || Number.isNaN(target)) return;
-  const hits=LEG_WINDOWS.filter(w=>target>=w.min && target<=w.max);
-  if(hits.length>0){
-    hits.forEach(w=>{ const d=document.createElement("div"); d.className="leg-band "+w.cls; d.textContent=w.label; c.appendChild(d); });
-  } else {
-    // nearest: minimal distance to a window; include ties
-    let bestDist=Infinity, nearest=[];
-    for(const w of LEG_WINDOWS){
-      let d=0;
-      if(target<w.min) d=w.min-target; else if(target>w.max) d=target-w.max;
-      if(d<bestDist){ bestDist=d; nearest=[w]; }
-      else if(d===bestDist){ nearest.push(w); }
-    }
-    nearest.forEach(w=>{ const d=document.createElement("div"); d.className="leg-band "+w.cls; d.textContent=w.label; c.appendChild(d); });
-  }
-}
-
-// Tabs
-const tabBtnBench=document.getElementById("tabBtnBench");
-const tabBtnPlanner=document.getElementById("tabBtnPlanner");
-const bench=document.getElementById("bench");
-const planner=document.getElementById("planner");
-function selectTab(which){
-  const isBench=which==="bench";
-  tabBtnBench.setAttribute("aria-selected", String(isBench));
-  tabBtnPlanner.setAttribute("aria-selected", String(!isBench));
-  bench.hidden=!isBench; planner.hidden=isBench;
-}
-tabBtnBench.addEventListener("click",()=>selectTab("bench"));
-tabBtnPlanner.addEventListener("click",()=>selectTab("planner"));
-
-// -------- Bench Mode logic --------
-let benchMode="manual"; // default off
-document.getElementById("benchModeRow").addEventListener("click",(e)=>{
-  const b=e.target.closest(".pill[data-mode]"); if(!b) return;
-  oneHotPill("#benchModeRow", b);
-  benchMode = b.dataset.mode;
-  document.getElementById("benchAutoBlock").hidden = (benchMode!=="auto");
-  document.getElementById("benchManualBlock").hidden = (benchMode!=="manual");
-  benchMaybeEnable();
-});
-
-let B_piece=null;
-document.getElementById("benchPieceRow")?.addEventListener("click",(e)=>{
-  const b=e.target.closest(".pill[data-size]"); if(!b)return;
-  oneHotPill("#benchPieceRow", b); B_piece=parseInt(b.dataset.size,10); benchEcho();
-});
-const b_hfb=document.getElementById("b_hfb");
-const b_sreq_auto=document.getElementById("b_sreq_auto");
-const b_sreq_manual=document.getElementById("b_sreq_manual");
-const b_scur=document.getElementById("b_scur");
-const b_lcur=document.getElementById("b_lcur");
-[b_hfb,b_scur,b_lcur,b_sreq_manual].forEach(el=>{ if(el) el.addEventListener("input",benchMaybeEnable); });
-function benchEcho(){
-  const h=toInt(b_hfb?.value);
-  if(B_piece!=null && h!=null && !Number.isNaN(h)){ if(b_sreq_auto) b_sreq_auto.value = (B_piece - h); }
-  else { if(b_sreq_auto) b_sreq_auto.value=""; }
-  benchMaybeEnable();
-}
-b_hfb?.addEventListener("input",benchEcho);
-function benchMaybeEnable(){
-  let ok=false;
-  if(benchMode==="auto"){
-    ok=(toInt(b_hfb?.value)!=null&&!Number.isNaN(toInt(b_hfb?.value))) && (B_piece!=null) &&
-       (toInt(b_scur.value)!=null&&!Number.isNaN(toInt(b_scur.value))) &&
-       (toInt(b_lcur.value)!=null&&!Number.isNaN(toInt(b_lcur.value)));
-  } else {
-    ok=(toInt(b_sreq_manual.value)!=null&&!Number.isNaN(toInt(b_sreq_manual.value))) &&
-       (toInt(b_scur.value)!=null&&!Number.isNaN(toInt(b_scur.value))) &&
-       (toInt(b_lcur.value)!=null&&!Number.isNaN(toInt(b_lcur.value)));
-  }
-  document.getElementById("b_calc").disabled=!ok;
-}
-document.getElementById("b_calc").addEventListener("click",()=>{
-  let Sreq = (benchMode==="auto") ? toInt(b_sreq_auto.value) : toInt(b_sreq_manual.value);
-  const Scur=toInt(b_scur.value); const Lcur=toInt(b_lcur.value);
-  const dS=Scur - Sreq; const Lnew=Lcur + dS;
-  const eq=document.getElementById("b_eq"); const res=document.getElementById("b_result");
-  eq.hidden=false; res.hidden=false; res.textContent="New Leg Height: "+Lnew+" mm";
-  renderLegBands("b_legBand", Lnew);
-});
-document.getElementById("b_reset").addEventListener("click",()=>{
-  benchMode="manual"; document.querySelectorAll("#benchModeRow .pill").forEach(b=>b.setAttribute("aria-pressed","false"));
-  document.querySelector('#benchModeRow .pill[data-mode="manual"]').setAttribute("aria-pressed","true");
-  document.getElementById("benchAutoBlock").hidden=true; document.getElementById("benchManualBlock").hidden=false;
-  B_piece=null; document.querySelectorAll("#benchPieceRow .pill").forEach(b=>b.setAttribute("aria-pressed","false"));
-  [b_hfb,b_sreq_auto,b_sreq_manual,b_scur,b_lcur].forEach(el=>{ if(el) el.value=""; });
-  document.getElementById("b_eq").hidden=true; document.getElementById("b_result").hidden=true;
-  document.getElementById("b_legBand").innerHTML="";
-  document.getElementById("b_calc").disabled=true;
-});
-
-// -------- Pre-Foam Planner --------
-let H_CORE=1595; const T_SPIG=130;
-let P_piece=914; let D_boot=200; document.getElementById("centerEcho").textContent=String(D_boot/2);
-document.getElementById("coreRow").addEventListener("click",(e)=>{
-  const b=e.target.closest(".pill[data-core]"); if(!b)return; oneHotPill("#coreRow",b); H_CORE=parseInt(b.dataset.core,10); maybeEnable();
-});
-document.getElementById("pieceRow").addEventListener("click",(e)=>{
-  const b=e.target.closest(".pill[data-size]"); if(!b)return; oneHotPill("#pieceRow",b); P_piece=parseInt(b.dataset.size,10); maybeEnable();
-});
-document.getElementById("bootRow").addEventListener("click",(e)=>{
-  const b=e.target.closest(".pill[data-boot]"); if(!b)return; oneHotPill("#bootRow",b); D_boot=parseInt(b.dataset.boot,10);
-  document.getElementById("centerEcho").textContent=String(D_boot/2); maybeEnable();
-});
-const hfb=document.getElementById("hfb"); const tfoam=document.getElementById("tfoam");
-[hfb,tfoam].forEach(el=>el.addEventListener("input",maybeEnable));
-function maybeEnable(){
-  const ok=(toInt(hfb.value)!=null&&!Number.isNaN(toInt(hfb.value)))&&(toInt(tfoam.value)!=null&&!Number.isNaN(toInt(tfoam.value)))&&P_piece&&D_boot&&H_CORE;
-  document.getElementById("plan").disabled=!ok;
-}
-document.getElementById("plan").addEventListener("click",()=>{
-  const Hfb=toInt(hfb.value); const F=toInt(tfoam.value);
-  const L=(H_CORE - T_SPIG) - (P_piece - Hfb) + (F - D_boot/2);
-  const eq=document.getElementById("eq"); const res=document.getElementById("result");
-  eq.hidden=false; res.hidden=false; res.textContent="Set legs to: "+L+" mm";
-  renderLegBands("legBand", L);
-});
-document.getElementById("reset").addEventListener("click",()=>{
-  H_CORE=1595; P_piece=914; D_boot=200; document.getElementById("centerEcho").textContent="100";
-  ["#coreRow","#pieceRow","#bootRow"].forEach(sel=>document.querySelectorAll(sel+" .pill").forEach(b=>b.setAttribute("aria-pressed","false")));
-  document.querySelector('#coreRow .pill[data-core="1595"]').setAttribute("aria-pressed","true");
-  document.querySelector('#pieceRow .pill[data-size="914"]').setAttribute("aria-pressed","true");
-  document.querySelector('#bootRow .pill[data-boot="200"]').setAttribute("aria-pressed","true");
-  hfb.value=""; tfoam.value="";
-  document.getElementById("plan").disabled=true;
-  document.getElementById("eq").hidden=true; document.getElementById("result").hidden=true;
-  document.getElementById("legBand").innerHTML="";
-});
-
-// Default tab
-selectTab("bench");
-</script>
+      <footer>Independent of DECAST • Quick field estimates only.</footer>
+    </main>
+    <script src="script.js"></script>
+  </body>
 </html>
